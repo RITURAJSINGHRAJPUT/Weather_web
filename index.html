@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Precision Farming</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            text-align: center;
+            background-color: #e6f7e6;
+            margin: 0;
+            padding: 0;
+        }
+        h2 {
+            background: #2d6a4f;
+            color: white;
+            padding: 15px;
+            margin: 0;
+        }
+        .container {
+            margin: 20px auto;
+            width: 90%;
+            max-width: 600px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        #map {
+            height: 400px;
+            width: 90%;
+            margin: 20px auto;
+            border-radius: 10px;
+        }
+        .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        select, button {
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        button {
+            background: #40916c;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .back-button {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 20px;
+            font-size: 16px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            width: 200px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #40916c;
+            color: white;
+        }
+        footer {
+            background: #2d6a4f;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2>🌾 IoT Precision Farming Dashboard 🌦️</h2>
+    <div class="container">
+        <div class="input-group">
+            <select id="location">
+                <option value="Surat,IN">Surat</option>
+                <option value="Ayodhya,IN">Ayodhya</option>
+                <option value="Ahmedabad,IN">Ahmedabad</option>
+                <option value="Pune,IN">Pune</option>
+                <option value="Kerala,IN">Kerala</option>
+                <option value="Varanasi,IN">Varanasi</option>
+            </select>
+            <button onclick="fetchWeather()">🌍 Get Data</button>
+        </div>
+    </div>
+    <div class="container">
+        <h2>7-Day Weather Forecast</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>🌡️ Temp (°C)</th>
+                    <th>💧 Humidity (%)</th>
+                    <th>🌥️ Weather</th>
+                </tr>
+            </thead>
+            <tbody id="weather-forecast">
+                <tr><td colspan="4">Select a location and click "Get Data"</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="map"></div>
+    <a href="javascript:void(0);" class="back-button" onclick="goBack()">⬅️ Back to Previous Page</a>
+    <footer>
+        © 2025 IoT Precision Farming. All rights reserved.
+    </footer>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        const apiKey = 'bc9015c1a2a3bc0e8e8300dc52001234';
+        let map;
+
+        async function fetchWeather() {
+            const location = document.getElementById('location').value;
+            if (!location) {
+                alert('Please select a location');
+                return;
+            }
+            try {
+                const geoUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${location}&limit=1&appid=${apiKey}`;
+                const geoResponse = await fetch(geoUrl);
+                const geoData = await geoResponse.json();
+                if (!geoData.length) throw new Error('Location not found!');
+
+                const { lat, lon } = geoData[0];
+                updateMap(lat, lon);
+                getWeatherForecast(lat, lon);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function getWeatherForecast(lat, lon) {
+            try {
+                const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+                const response = await fetch(forecastUrl);
+                const data = await response.json();
+                if (!data.list) throw new Error('Weather data unavailable!');
+
+                let forecastHtml = '';
+                for (let i = 0; i < data.list.length; i += 8) {
+                    const day = data.list[i];
+                    const date = new Date(day.dt * 1000).toDateString();
+                    forecastHtml += `
+                        <tr>
+                            <td>${date}</td>
+                            <td>🌡️ ${day.main.temp.toFixed(1)}°C</td>
+                            <td>💧 ${day.main.humidity}%</td>
+                            <td>${day.weather[0].description}</td>
+                        </tr>`;
+                }
+                document.getElementById('weather-forecast').innerHTML = forecastHtml;
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function goBack() {
+            window.history.back();
+        }
+
+        function loadMap(lat = 21.1702, lon = 72.8311) {
+            map = L.map('map').setView([lat, lon], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            L.marker([lat, lon]).addTo(map).bindPopup('📍 Default Location').openPopup();
+        }
+
+        function updateMap(lat, lon) {
+            map.setView([lat, lon], 13);
+            L.marker([lat, lon]).addTo(map).bindPopup('📍 Updated Location').openPopup();
+        }
+
+        loadMap();
+    </script>
+</body>
+</html>
